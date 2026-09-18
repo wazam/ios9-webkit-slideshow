@@ -1,8 +1,28 @@
 # iOS 9 WebKit Slideshow
 
-<img src="apple-touch-icon.png" alt="Slideshow" width="96"> A minimal, dependency-free photo slideshow built to run on genuinely old hardware: originally an iPad 3 (iOS 9.3.5, stuck on ancient Safari/WebKit) repurposed as a wall-mounted photo display.
+[![Docker Publish](https://github.com/wazam/ios9-webkit-slideshow/actions/workflows/docker.yml/badge.svg)](https://github.com/wazam/ios9-webkit-slideshow/actions/workflows/docker.yml)
+[![Compose Test](https://github.com/wazam/ios9-webkit-slideshow/actions/workflows/compose-test.yml/badge.svg)](https://github.com/wazam/ios9-webkit-slideshow/actions/workflows/compose-test.yml)
+[![Latest Release](https://img.shields.io/github/v/release/wazam/ios9-webkit-slideshow?sort=semver&label=Latest%20Release)](https://github.com/wazam/ios9-webkit-slideshow/releases)
+[![Docker Image Size](https://img.shields.io/docker/image-size/wazam123/ios9-webkit-slideshow/latest?label=Image%20Size&logo=docker)](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow)
+[![Docker Hub Pulls](https://img.shields.io/docker/pulls/wazam123/ios9-webkit-slideshow?logo=docker&label=Docker%20Hub%20Pulls)](https://hub.docker.com/repository/docker/wazam123/ios9-webkit-slideshow/general)
+[![GHCR Pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fwazam%2Fios9-webkit-slideshow%2Fios9-webkit-slideshow&query=downloadCountRaw&label=GHCR%20Pulls&logo=github)](https://github.com/wazam/ios9-webkit-slideshow/pkgs/container/ios9-webkit-slideshow)
 
-Just plain HTML/CSS/JS (ES5) served by nginx: no frameworks, no `fetch()`, no ES6+ syntax. Modern JS tooling simply won't run on browsers this old: [ImmichFrame](https://github.com/immichFrame/immichFrame)'s Svelte/TypeScript frontend was ruled out without testing, and [PhotoShow](https://github.com/thibaud-rohmer/PhotoShow)'s gallery grid loaded fine but its slideshow button silently did nothing on iOS 9 Safari.
+<img src="apple-touch-icon.png" alt="Slideshow" width="96"> **iOS 9 WebKit Slideshow** is a minimal, dependency-free photo slideshow built to run on genuinely old hardware: originally an iPad 3 (iOS 9.3.5, stuck on ancient Safari/WebKit) repurposed as a photo display. It's just plain HTML/CSS/JS (ES5) served by nginx, no frameworks, no `fetch()`, no ES6+ syntax, since modern JS tooling simply won't run on browsers this old: existing options like [ImmichFrame](https://github.com/immichFrame/immichFrame) and [PhotoShow](https://github.com/thibaud-rohmer/PhotoShow) both failed on iOS 9 Safari (a frontend that couldn't run at all, and a slideshow button that silently did nothing). Ancient problems require modern solutions.
+
+## Table of Contents
+
+- [Demo](#demo)
+- [Features](#features)
+- [Quick Start](#quick-start)
+  - [Run via Docker](#run-via-docker)
+  - [Build from Source](#build-from-source)
+  - [Adding Photos](#adding-photos)
+  - [Read-Only Photo Library](#read-only-photo-library)
+- [Environment Variables](#environment-variables)
+- [How It Works](#how-it-works)
+- [Compatibility Notes](#compatibility-notes)
+- [Companion Tools](#companion-tools)
+- [License](#license)
 
 ## Demo
 
@@ -10,37 +30,108 @@ Just plain HTML/CSS/JS (ES5) served by nginx: no frameworks, no `fetch()`, no ES
 
 The physical setup, crossfading between two photos on the iPad 3.
 
-## Usage
+## Features
 
-The image is published to GitHub Container Registry (`ghcr.io/wazam/ios9-webkit-slideshow`) and Docker Hub (`wazam123/ios9-webkit-slideshow`).
+- **Smooth transitions**: photos fade from one to the next, loading quietly in the background first so there's no stutter or flash
+- **Handles broken and missing photos gracefully**: a photo that fails to load is skipped automatically, and if there are no photos at all it shows a friendly message instead of a black screen
+- **Organize however you like**: photos in subfolders all play together in one shared rotation, no matter how you nest them, and any folder named `ignore` is hidden from the rotation without deleting anything
+- **Shuffle or in order**: show photos in random order or alphabetically, your choice
+- **No manual photo conversion**: drop `.heic` photos straight from your iPhone into the shared folder (however you already access it, like a network share or a file browser app) and they're automatically converted and added to the slideshow, no separate conversion step needed
+- **Plugs into monitoring tools**: a built-in health check lets tools like Portainer tell if it's actually still working
+- **No permission headaches**: matches your own user account automatically, so nothing ever needs manual permission fixes
 
-**Required setup:** the container writes into `pictures/` (to process `_inbox/` drops), so set `PUID`/`PGID` in `compose.yaml` to match whoever owns your `pictures/` folder on the host (find yours with `id -u` and `id -g`; the default `1000` already matches the first user account on most single-user Linux/WSL setups). Once they match, the container and your own account always have full access to anything either side creates, no `chmod` ever needed, even for brand-new folders created later by a file manager or a family member organizing `_inbox/` drops into subfolders.
+## Quick Start
 
-Running the published image (pulls `ghcr.io/wazam/ios9-webkit-slideshow`, as set in `compose.yaml`):
+> [!TIP]
+> Run via Docker is recommended for most users. No clone required.
 
-```bash
-docker compose up -d
-```
+**Required setup:** the container writes into `pictures/` (to process `_inbox/` drops), so set `PUID`/`PGID` to match whoever owns your `pictures/` folder on the host (find yours with `id -u` and `id -g`; the default `1000` already matches the first user account on most single-user Linux/WSL setups). Once they match, the container and your own account always have full access to anything either side creates, no `chmod` ever needed, even for brand-new folders created later by a file manager or a family member organizing `_inbox/` drops into subfolders.
 
-Building from source instead: `compose.override.yaml` swaps in a local `ios9-webkit-slideshow:local` tag and adds the `build: .` step, so a local build never overwrites the published GHCR image. This file auto-merges with `compose.yaml` on any plain `docker compose` command, no extra flags needed:
+### Run via Docker
 
-```bash
-docker compose up -d --build
-```
+The image is published to [GitHub Container Registry](https://github.com/wazam/ios9-webkit-slideshow/pkgs/container/ios9-webkit-slideshow) (`ghcr.io/wazam/ios9-webkit-slideshow`) and [Docker Hub](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow) (`wazam123/ios9-webkit-slideshow`).
 
-For faster iteration while actively developing, layer on `compose.dev.yaml` too, which shortens the slideshow/scan/refresh timings so changes show up in seconds instead of minutes (specifying any `-f` flags disables the automatic `compose.override.yaml` merge, so it has to be listed explicitly alongside the others):
+1. **Create the pictures directory**
 
-```bash
-docker compose -f compose.yaml -f compose.override.yaml -f compose.dev.yaml up -d --build
-```
+   ```sh
+   mkdir pictures
+   ```
 
-Then visit `http://<host>:8080`.
+2. **Download the compose file**
+
+   ```sh
+   curl -O https://raw.githubusercontent.com/wazam/ios9-webkit-slideshow/main/compose.yaml
+   ```
+
+   The compose file looks like this. Uncomment and set `PUID`/`PGID` per the required setup above, and adjust any other settings as needed:
+
+   ```yaml
+   services:
+     app:
+       image: ghcr.io/wazam/ios9-webkit-slideshow:latest
+       container_name: slideshow
+       restart: unless-stopped
+       # environment:
+       #   - PUID=1000
+       #   - PGID=1000
+       #   - INBOX_SCAN_SECONDS=30
+       #   - SERVER_SCAN_SECONDS=60
+       #   - BROWSER_REFRESH_MINUTES=15
+       #   - SLIDESHOW_DELAY_SECONDS=10
+       #   - SLIDESHOW_SHUFFLE=true
+       volumes:
+         - ./pictures:/usr/share/nginx/html/pictures
+         # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro
+       ports:
+         - 8080:8080
+   ```
+
+3. **Start the stack**
+
+   ```sh
+   docker compose up -d
+   ```
+
+4. **Open the slideshow**
+
+   Visit `http://<host>:8080` in your browser.
+
+---
+
+### Build from Source
+
+1. **Clone the repository**
+
+   ```sh
+   git clone https://github.com/wazam/ios9-webkit-slideshow.git
+   cd ios9-webkit-slideshow
+   ```
+
+2. **Build and start the stack**
+
+   `compose.override.yaml` swaps in a local `ios9-webkit-slideshow:local` tag and adds the `build: .` step, so a local build never overwrites the published GHCR image. This file auto-merges with `compose.yaml` on any plain `docker compose` command, no extra flags needed:
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+   For faster iteration while actively developing, layer on `compose.dev.yaml` too, which shortens the slideshow/scan/refresh timings so changes show up in seconds instead of minutes (specifying any `-f` flags disables the automatic `compose.override.yaml` merge, so it has to be listed explicitly alongside the others):
+
+   ```sh
+   docker compose -f compose.yaml -f compose.override.yaml -f compose.dev.yaml up -d --build
+   ```
+
+3. **Open the slideshow**
+
+   Visit `http://<host>:8080` in your browser.
+
+### Adding Photos
 
 Add or remove photos by dropping files into the `pictures/` folder (bind-mounted from the host). No restart is required: the server rescans within `SERVER_SCAN_SECONDS`, then the browser picks up the updated list on its next reload, within `BROWSER_REFRESH_MINUTES`.
 
 To add photos straight from an iPhone (or any format) without any conversion step, drop them into `pictures/_inbox/` (organize into subfolders there if you want; they land in the matching subfolder under `pictures/`, e.g. `pictures/_inbox/vacation2026/photo.heic` becomes `pictures/vacation2026/photo.jpg`). This is also why a GUI file manager like FileBrowser is optional rather than required: plain filesystem/network access to `pictures/_inbox/` is enough. The leading underscore is deliberate, it sorts the folder to the top of most file managers (FileBrowser, Windows Explorer, `ls`, etc.), ahead of `ignore/` and any of your own photo folders, so it's easy to find at a glance.
 
-### Pointing at an existing photo folder instead (read-only)
+### Read-Only Photo Library
 
 If you already have a photo library elsewhere and don't want or need the inbox/HEIC-conversion feature, mount it read-only instead by adding `:ro` to the volume line in `compose.yaml`:
 
@@ -61,32 +152,26 @@ volumes:
 
 The read-only library then shows up in the slideshow like any other subfolder, merged into the same photo pool, but the inbox/HEIC feature can never write into it since that specific mount point is read-only.
 
-## Environment variables
+## Environment Variables
 
-| Variable | Default | Description |
+| Variable | Description | Default |
 |---|---|---|
-| `PUID` | `1000` | Host user ID the container runs as. Should match whoever owns `pictures/` (check with `id -u`) |
-| `PGID` | `1000` | Host group ID the container runs as. Should match whoever owns `pictures/` (check with `id -g`) |
-| `INBOX_SCAN_SECONDS` | `30` | How often `pictures/_inbox/` is checked for newly dropped photos to convert/move/dedupe |
-| `SERVER_SCAN_SECONDS` | `60` | How often the server rescans the `pictures/` folder and rewrites `photos.js` |
-| `BROWSER_REFRESH_MINUTES` | `15` | How often the browser reloads the page to pick up new/removed photos |
-| `SLIDESHOW_DELAY_SECONDS` | `10` | How many seconds each photo stays on screen before crossfading to the next |
-| `SLIDESHOW_SHUFFLE` | `true` | `true` = random photo order, reshuffled each full cycle, guaranteed never to repeat the same photo twice in a row (unless only one photo exists); `false` = alphabetical path order (folders sort together, files uploaded later don't jump ahead of other folders) |
+| `PUID` | Host user ID the container runs as. Should match whoever owns `pictures/` (check with `id -u`) | `1000` |
+| `PGID` | Host group ID the container runs as. Should match whoever owns `pictures/` (check with `id -g`) | `1000` |
+| `INBOX_SCAN_SECONDS` | How often `pictures/_inbox/` is checked for newly dropped photos to convert/move/dedupe | `30` |
+| `SERVER_SCAN_SECONDS` | How often the server rescans the `pictures/` folder and rewrites `photos.js` | `60` |
+| `BROWSER_REFRESH_MINUTES` | How often the browser reloads the page to pick up new/removed photos | `15` |
+| `SLIDESHOW_DELAY_SECONDS` | How many seconds each photo stays on screen before crossfading to the next | `10` |
+| `SLIDESHOW_SHUFFLE` | `true` = random photo order, reshuffled each full cycle, guaranteed never to repeat the same photo twice in a row (unless only one photo exists); `false` = alphabetical path order (folders sort together, files uploaded later don't jump ahead of other folders) | `true` |
 
-## How it works
+## How It Works
 
 - `Dockerfile` builds a custom image on top of `nginxinc/nginx-unprivileged:alpine`, with the slideshow page and a photo-scanning script baked in. The container starts as root only long enough to adjust its internal user to match `PUID`/`PGID`, then drops privileges permanently before running anything else
 - On container start (and on a repeating interval), `generate-photos.sh` scans the mounted `pictures/` folder and writes out `photos.js`, a plain JS array of image paths
-- Subfolders inside `pictures/` are scanned recursively, and merged into one flat pool (no per-folder grouping)
-- Any folder named `ignore`, at any depth inside `pictures/` (e.g. `pictures/ignore/` or `pictures/vacation2026/ignore/`), is skipped entirely, so photos can be staged there without joining the rotation
 - `index.html.template` is processed by nginx's built-in `envsubst` templating on startup, substituting environment variables into the page before serving it
-- The page crossfades through photos on a timer, and periodically reloads itself in-browser to pick up newly added/removed photos
-- Each photo is preloaded in the background before it's shown, and a photo that fails to load (e.g. corrupted mid-upload) is silently skipped in favor of the next one, so a bad file never gets displayed
-- If `pictures/` has no usable photos, the page shows a simple "no photos found" message instead of a blank screen, whether that's true from the very first load or every photo gets removed while the page is already running
-- The image includes a Docker `HEALTHCHECK`, so `docker ps` and tools like Portainer can tell if the web server has actually stopped responding, not just whether the container is still running
-- Dropping a photo (including `.heic`/`.HEIC` straight from an iPhone) into `pictures/_inbox/` gets it converted if needed, moved into `pictures/` at the matching path, and removed from the inbox automatically: no conversion software needed. Duplicate content (the same photo dropped twice, even under a different filename) is detected by hash and silently skipped rather than shown twice; a name collision with an existing photo gets auto-renamed (`photo (1).jpg`) rather than overwriting the original
+- `process-inbox.sh` runs immediately before the photo scan on each interval, converting and moving anything dropped into `pictures/_inbox/` (deduplicated by content hash, filename collisions auto-renamed) so it's already in place by the very next scan
 
-## Compatibility notes
+## Compatibility Notes
 
 - Tested working on iOS 9.3.5 Safari (iPad 3) and modern desktop browsers
 - The photo scanner only picks up `.jpg`/`.jpeg`, `.png`, and `.gif` (including animated GIFs). All three have been supported since the earliest iOS releases, and are confirmed working on iOS 9.3.5 Safari
@@ -98,6 +183,10 @@ The read-only library then shows up in the slideshow like any other subfolder, m
 - HEVC/H.265 (in either container) fails even more fundamentally: iOS didn't add HEVC decoding until iOS 11, and only on A9-chip-or-later devices. The iPad 3's A5X chip predates that requirement entirely, so the codec itself can't be decoded, not just blocked by the `playsinline` issue
 - The photo scanner doesn't pick up video files of any format regardless
 
-## Companion tools
+## Companion Tools
 
-A file-manager container (e.g. [FileBrowser](https://github.com/gtsteffaniak/filebrowser) or [Dufs](https://github.com/sigoden/dufs)) pointed at the same `pictures/` folder is optional, not required: `pictures/_inbox/` (see Usage above) handles adding and converting photos on its own. A GUI file manager is only useful if you also want to browse, rename, or delete existing photos without direct filesystem/network access. Not included in this repo, deployed alongside it if wanted.
+A file-manager container (e.g. [FileBrowser](https://github.com/gtsteffaniak/filebrowser) or [Dufs](https://github.com/sigoden/dufs)) pointed at the same `pictures/` folder is optional, not required: `pictures/_inbox/` (see Quick Start above) handles adding and converting photos on its own. A GUI file manager is only useful if you also want to browse, rename, or delete existing photos without direct filesystem/network access. Not included in this repo, deployed alongside it if wanted.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
