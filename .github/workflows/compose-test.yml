@@ -1,0 +1,47 @@
+# https://github.com/peter-evans/docker-compose-actions-workflow
+
+name: Compose Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '22 22 * * 3'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Validate Stack with Docker Compose
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        run: docker build --load -t ghcr.io/wazam/ios9-webkit-slideshow:latest .
+
+      - name: Create pictures directory
+        run: mkdir -p pictures
+
+      - name: Start slideshow service
+        run: docker compose -f compose.yaml up -d app
+
+      - name: Wait for web service
+        run: sleep 10
+
+      - name: Verify web UI is responding
+        run: curl --retry 10 --retry-max-time 60 --retry-connrefused --fail http://localhost:8080/
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml logs
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f compose.yaml down --volumes --remove-orphans

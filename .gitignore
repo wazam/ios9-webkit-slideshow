@@ -1,0 +1,16 @@
+# Generated at runtime, not part of the app itself
+photos.js
+pictures/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+
+# Exported image archives, not source
+*.tar.gz
+
+# Personal workspace settings, not shared project config
+ios9-webkit-slideshow.code-workspace
+
+# Personal scratch notes, not shared project config
+TODO.md

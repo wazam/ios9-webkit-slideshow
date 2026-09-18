@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Slideshow</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/apple-touch-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style type="text/css">
+  html, body { margin: 0; padding: 0; background: #000; width: 100%; height: 100%; overflow: hidden; }
+  #stage { position: relative; width: 100%; height: 100%; }
+  #stage img {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: contain; opacity: 0;
+    -webkit-transition: opacity 1.5s ease-in-out; /* keep in sync with fadeMs below */
+    transition: opacity 1.5s ease-in-out;
+  }
+  #stage img.active { opacity: 1; }
+  #empty-message {
+    display: none;
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    box-sizing: border-box; padding-top: 40vh;
+    color: #888; font-family: sans-serif; font-size: 5vw; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <img id="imgA" src="" alt="">
+  <img id="imgB" src="" alt="">
+  <div id="empty-message">No photos found in <code>pictures/</code></div>
+</div>
+
+<script src="photos.js"></script>
+<script type="text/javascript">
+  var fadeMs = 1500; // keep in sync with the CSS opacity transition duration above
+  var delayMs = ${SLIDESHOW_DELAY_SECONDS} * 1000;
+  var reloadMs = ${BROWSER_REFRESH_MINUTES} * 60 * 1000;
+  var shuffleEnabled = "${SLIDESHOW_SHUFFLE}" === "true";
+  var index = 0;
+  var showingA = true;
+
+  var imgA = document.getElementById("imgA");
+  var imgB = document.getElementById("imgB");
+
+  function shuffleArray(arr) {
+    var i, j, temp;
+    for (i = arr.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * (i + 1));
+      temp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = temp;
+    }
+    return arr;
+  }
+
+  if (shuffleEnabled && typeof photos !== "undefined") {
+    photos = shuffleArray(photos);
+  }
+
+  function showEmptyMessage() {
+    document.getElementById("empty-message").style.display = "block";
+  }
+
+  // Picks the next photo, guaranteeing it's never one of the srcs in avoidMap
+  // (an object used as a set). avoidMap always contains the photo currently
+  // on screen, so nothing repeats immediately; during a retry chain after
+  // skipping broken files it also accumulates every candidate already tried
+  // and failed, so a rescue swap can never reintroduce one of those either.
+  function nextSrc(avoidMap) {
+    index = index + 1;
+    if (index >= photos.length) {
+      index = 0;
+      if (shuffleEnabled) {
+        photos = shuffleArray(photos);
+      }
+    }
+    if (photos.length > 1 && avoidMap[photos[index]]) {
+      var tries, candidateIndex, temp;
+      for (tries = 1; tries < photos.length; tries++) {
+        candidateIndex = (index + tries) % photos.length;
+        if (!avoidMap[photos[candidateIndex]]) {
+          temp = photos[index];
+          photos[index] = photos[candidateIndex];
+          photos[candidateIndex] = temp;
+          break;
+        }
+      }
+    }
+    return photos[index];
+  }
+
+  // Loads the next photo into targetEl in the background (it's the currently
+  // hidden image) so it has the full delayMs interval to decode before it
+  // needs to be shown, avoiding a blank flash on slow hardware. If a photo
+  // fails to load, it's skipped in favor of the next one, remembering every
+  // failure so far, until either one loads or every photo has been tried.
+  function preloadNext(targetEl, avoidMap) {
+    var candidate = nextSrc(avoidMap);
+    if (photos.length > 1 && avoidMap[candidate]) {
+      // Every photo currently listed has now failed to load in this chain
+      // (e.g. they were all deleted from pictures/ while the page was
+      // running), so there's nothing left to show until the next reload
+      // picks up a fresh photos.js.
+      showEmptyMessage();
+      return;
+    }
+    targetEl.onerror = function () {
+      avoidMap[candidate] = true;
+      preloadNext(targetEl, avoidMap);
+    };
+    targetEl.src = candidate;
+  }
+
+  function tick() {
+    var showEl = showingA ? imgB : imgA;
+    var hideEl = showingA ? imgA : imgB;
+    showEl.className = "active";
+    hideEl.className = "";
+    showingA = !showingA;
+    var avoidMap = {};
+    avoidMap[showEl.src] = true;
+    // Wait for hideEl's fade-out to actually finish before reassigning its src.
+    // Changing src immediately discards its current image content, even while
+    // opacity is still mid-transition, which looked like a flash to black.
+    setTimeout(function () {
+      preloadNext(hideEl, avoidMap);
+    }, fadeMs);
+  }
+
+  // Bootstraps the very first visible photo, trying candidates in order until
+  // one actually confirms it loaded (unlike the steady-state preload, there's
+  // no elapsed time yet to trust, so this waits for a real onload before
+  // showing anything or starting the interval).
+  function bootstrapFirst(attempt) {
+    if (attempt >= photos.length) {
+      showEmptyMessage();
+      return;
+    }
+    imgA.onerror = function () {
+      bootstrapFirst(attempt + 1);
+    };
+    imgA.onload = function () {
+      imgA.onload = null;
+      index = attempt;
+      imgA.className = "active";
+      var avoidMap = {};
+      avoidMap[imgA.src] = true;
+      preloadNext(imgB, avoidMap);
+      setInterval(tick, delayMs);
+    };
+    imgA.src = photos[attempt];
+  }
+
+  if (photos.length > 0) {
+    bootstrapFirst(0);
+  } else {
+    showEmptyMessage();
+  }
+
+  setInterval(function () { location.reload(); }, reloadMs);
+</script>
+
+</body>
+</html>

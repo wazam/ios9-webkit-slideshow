@@ -1,0 +1,18 @@
+services:
+  app:
+    image: ghcr.io/wazam/ios9-webkit-slideshow:latest
+    container_name: slideshow
+    restart: unless-stopped
+    # environment:
+    #   - PUID=1000
+    #   - PGID=1000
+    #   - INBOX_SCAN_SECONDS=30
+    #   - SERVER_SCAN_SECONDS=60
+    #   - BROWSER_REFRESH_MINUTES=15
+    #   - SLIDESHOW_DELAY_SECONDS=10
+    #   - SLIDESHOW_SHUFFLE=true
+    volumes:
+      - ./pictures:/usr/share/nginx/html/pictures
+      # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro
+    ports:
+      - 8080:8080

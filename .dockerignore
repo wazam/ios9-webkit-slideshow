@@ -1,0 +1,15 @@
+.git
+.github
+.gitignore
+compose.yaml
+compose.override.yaml
+compose.dev.yaml
+ios9-webkit-slideshow.code-workspace
+Dockerfile
+pictures/
+photos.js
+*.tar.gz
+README.md
+LICENSE
+TODO.md
+slideshow-demo.gif
