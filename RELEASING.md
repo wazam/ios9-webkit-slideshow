@@ -53,6 +53,7 @@ docker compose build --pull --no-cache && docker compose up -d
 
 Inside the repo, `docker compose` also loads `compose.override.yaml`, so this runs the local build, not the published image. Then:
 
+- If a `--pull --no-cache` build ran the night before and you left those flags off to reuse its layers, check that nothing is left to upgrade: `docker run --rm --entrypoint sh -u root ios9-webkit-slideshow:local -c 'apk update -q >/dev/null 2>&1; apk list -u 2>/dev/null | wc -l'` prints `0`; otherwise rebuild with the flags.
 - `docker inspect -f '{{.State.Health.Status}}' slideshow` says `healthy`, and `docker logs --tail 20 slideshow` shows nginx starting with no errors.
 - `docker logs slideshow 2>&1 | grep '^process-inbox:'` prints nothing. A line there means the container can't write `pictures/`, and it names the folder's owner and the fix.
 - [http://localhost:8080/](http://localhost:8080/) shows the slideshow.
