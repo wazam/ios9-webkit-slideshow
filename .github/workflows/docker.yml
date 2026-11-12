@@ -19,10 +19,11 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -48,6 +49,13 @@ jobs:
             type=semver,pattern=latest
             type=raw,value=main
 
+      - name: Read the image description
+        id: description
+        run: |
+          description=$(sed -n 's/.*org\.opencontainers\.image\.description="\([^"]*\)".*/\1/p' Dockerfile)
+          test -n "$description"
+          echo "text=$description" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         id: build-and-push
         uses: docker/build-push-action@v7
@@ -55,29 +63,38 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          # The GitHub attestation below records the build. buildx's own unsigned provenance would add
+          # an unknown/unknown manifest per platform to the image index
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            IMAGE_VERSION=${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          annotations: |
+            index:org.opencontainers.image.description=${{ steps.description.outputs.text }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign --yes {}@${{ steps.build-and-push.outputs.digest }}
+      # Stored in GitHub's attestation store, not pushed to GHCR. A cosign signature pushed as a tag
+      # became the package's newest version, so the package page showed it instead of the image
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
 
   push-dockerhub:
     name: Push to Docker Hub
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -102,17 +119,35 @@ jobs:
             type=semver,pattern=latest
             type=raw,value=main
 
+      - name: Read the image description
+        id: description
+        run: |
+          description=$(sed -n 's/.*org\.opencontainers\.image\.description="\([^"]*\)".*/\1/p' Dockerfile)
+          test -n "$description"
+          echo "text=$description" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
+        id: build-and-push
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          # The GitHub attestation below records the build. buildx's own unsigned provenance would add
+          # an unknown/unknown manifest per platform to the image index
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            IMAGE_VERSION=${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          annotations: |
+            index:org.opencontainers.image.description=${{ steps.description.outputs.text }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-name: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/ios9-webkit-slideshow
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
