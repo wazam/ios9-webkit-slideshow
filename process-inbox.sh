@@ -4,13 +4,44 @@
 # subfolder structure), and removes the original from inbox only after a
 # verified successful write. Content is hashed against a small persistent
 # manifest so the same photo dropped twice never ends up duplicated.
-process_inbox() {
-  umask 000
-  DIR=/usr/share/nginx/html/pictures
-  INBOX="$DIR/_inbox"
-  MANIFEST="$DIR/.inbox-manifest"
+DIR=/usr/share/nginx/html/pictures
+INBOX="$DIR/_inbox"
+MANIFEST="$DIR/.inbox-manifest"
 
-  mkdir -p "$INBOX" 2>/dev/null || return
+# Logs why the inbox is off and how to fix it. Silent when pictures/ sits on
+# a read-only mount (a read-only photo library is a supported setup with no
+# inbox), or doesn't exist (nothing mounted, so there are no photos either).
+warn_not_writable() {
+  [ -d "$DIR" ] || return
+  # The options of the mount that holds pictures/: the longest mount point
+  # that is pictures/ itself or one of its parent folders.
+  if awk -v d="$DIR" '
+    ($2 == d || $2 == "/" || index(d, $2 "/") == 1) && length($2) >= best { best = length($2); opts = $4 }
+    END { exit opts !~ /^ro(,|$)/ }' /proc/mounts; then
+    return
+  fi
+
+  if [ -w "$DIR" ]; then target="$INBOX"; name="pictures/_inbox/"; else target="$DIR"; name="pictures/"; fi
+  owner=$(stat -c %u:%g "$target")
+  me="$(id -u):$(id -g)"
+
+  if [ "${owner%%:*}" = "$(id -u)" ]; then
+    echo "process-inbox: $name is owned by $me but isn't writable (mode $(stat -c %a "$target")), so the inbox is off. To turn it on: chmod -R u+w ./pictures" >&2
+  elif [ "${owner%%:*}" = 0 ]; then
+    echo "process-inbox: $name is owned by root and the container runs as $me, so the inbox is off. To turn it on, give the folder to the container's user: sudo chown -R $me ./pictures" >&2
+  else
+    echo "process-inbox: $name is owned by $owner and the container runs as $me, so the inbox is off. To turn it on, give the folder to the container's user (sudo chown -R $me ./pictures), or set user: \"$owner\" in compose.yaml" >&2
+  fi
+}
+
+# Warns only on the first run ("startup"), so a wrong owner is logged once per
+# container start instead of every scan. Fixing the owner while the container
+# runs turns the inbox on at the next scan.
+process_inbox() {
+  if ! mkdir -p "$INBOX" 2>/dev/null || [ ! -w "$DIR" ] || [ ! -w "$INBOX" ]; then
+    [ "$1" = startup ] && warn_not_writable
+    return
+  fi
 
   find "$INBOX" -type f 2>/dev/null | while IFS= read -r f; do
     rel=${f#"$INBOX"/}
@@ -79,5 +110,5 @@ process_inbox() {
   done
 }
 
-process_inbox
+process_inbox startup
 ( while true; do sleep "${INBOX_SCAN_SECONDS:-30}"; process_inbox; done ) &
