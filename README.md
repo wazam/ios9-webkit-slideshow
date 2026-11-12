@@ -24,6 +24,7 @@
   - [Read-Only Photo Library](#read-only-photo-library)
 - [Companion Tools](#companion-tools)
 - [Screenshots](#screenshots)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Features
@@ -216,6 +217,10 @@ A file-manager container (e.g. [FileBrowser](https://github.com/gtsteffaniak/fil
 ![The iPad 3 on its desk stand, crossfading between photos](slideshow-demo.gif)
 
 The physical setup, crossfading between two photos on the iPad 3.
+
+## Contributing
+
+Report bugs or feature requests by opening an issue on the [GitHub repository](https://github.com/wazam/ios9-webkit-slideshow/issues). See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ## License
 

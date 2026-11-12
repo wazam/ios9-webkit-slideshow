@@ -193,9 +193,9 @@ Listing needs a token with `read:packages`, and deleting one needs `delete:packa
 
 ## 9. Update the Docker Hub page and GitHub About
 
-GHCR's package page shows the README by itself. Docker Hub's page and GitHub's About description don't update on their own, so copy them from the README whenever its intro, features, quick start, settings table, or screenshots changed:
+GHCR's package page shows the README by itself. Docker Hub's page and GitHub's About description don't update on their own, so copy them from the README whenever its intro, Quick Start, Features or Contributing section changed:
 
-- **Docker Hub overview:** on hub.docker.com, open the repository's General tab and paste the README's intro, Features, Quick Start (the `pictures` folder step and the `compose.yaml`) and Environment Variables, with links and images as absolute URLs. Leave out Build from Source. Then check the public page, [hub.docker.com/r/wazam123/ios9-webkit-slideshow](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow).
+- **Docker Hub overview:** on hub.docker.com, open the repository's General tab and paste, in this order: a first line `GitHub: https://github.com/wazam/ios9-webkit-slideshow`, the README's intro paragraph without its icon, `## Quick Start` (the required setup and Run via Docker Compose, without the tip box or Build from Source), `## Features`, and `## Issues and Feature Requests` with the issues sentence from Contributing. Make links absolute URLs; the Quick Start's Environment Variables link points to the README on GitHub. Then check the public page, [hub.docker.com/r/wazam123/ios9-webkit-slideshow](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow).
 - **One-line description:** one sentence of at most 100 characters (Docker Hub's limit) saying what the README's first sentence says. Its one copy in the repo is the Dockerfile's `org.opencontainers.image.description` label, which Docker Publish also puts on GHCR's package page. Change it there first, then copy it to GitHub's About description and Docker Hub's short description:
 
     ```bash
