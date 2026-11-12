@@ -231,6 +231,7 @@ quick = '\n'.join([
 feat = sec('## Features', '## Tech Stack')
 issues = sec('## Contributing', '## License').replace('## Contributing', '## Issues and Feature Requests')
 issues = issues.replace('](CHANGELOG.md)', f']({base}/blob/main/CHANGELOG.md)')
+issues = issues.replace('](ROADMAP.md)', f']({base}/blob/main/ROADMAP.md)')
 print('\n'.join([f'GitHub: {base}', '', intro, '', quick, feat, issues]).rstrip())
 EOF
 ```

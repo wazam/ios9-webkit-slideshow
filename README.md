@@ -222,7 +222,7 @@ The physical setup, crossfading between two photos on the iPad 3.
 
 ## Contributing
 
-Report bugs or feature requests by opening an issue on the [GitHub repository](https://github.com/wazam/ios9-webkit-slideshow/issues). See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
+Report bugs or feature requests by opening an issue on the [GitHub repository](https://github.com/wazam/ios9-webkit-slideshow/issues). See [CHANGELOG.md](CHANGELOG.md) for what changed in each release and [ROADMAP.md](ROADMAP.md) for planned and proposed features.
 
 ## License
 
