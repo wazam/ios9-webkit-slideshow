@@ -195,7 +195,48 @@ Listing needs a token with `read:packages`, and deleting one needs `delete:packa
 
 GHCR's package page shows the README by itself. Docker Hub's page and GitHub's About description don't update on their own, so copy them from the README whenever its intro, Quick Start, Features or Contributing section changed:
 
-- **Docker Hub overview:** on hub.docker.com, open the repository's General tab and paste, in this order: a first line `GitHub: https://github.com/wazam/ios9-webkit-slideshow`, the README's intro paragraph without its icon, `## Quick Start` (the required setup and Run via Docker Compose, without the tip box or Build from Source), `## Features`, and `## Issues and Feature Requests` with the issues sentence from Contributing. Make links absolute URLs; the Quick Start's Environment Variables link points to the README on GitHub. Then check the public page, [hub.docker.com/r/wazam123/ios9-webkit-slideshow](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow).
+- **Docker Hub overview:** on hub.docker.com, open the repository's General tab and replace the overview with the output of the command below, which builds it from `README.md` and `compose.yaml` so the page can't drift from them. In order, it has:
+    - a first line `GitHub: https://github.com/wazam/ios9-webkit-slideshow`, then the README's intro paragraph without its icon
+    - `## Quick Start`: the two registries, `compose.yaml` itself with its `image:` line changed to `wazam123/ios9-webkit-slideshow:latest` (the page is Docker Hub's), the settings and folder-owner paragraphs, and the numbered steps without the tip box or Build from Source; after the download step, a note that the downloaded file pulls from GHCR and how to switch it
+    - `## Features`, and `## Issues and Feature Requests` with the sentence from the README's Contributing section
+
+    Every link is absolute; the Environment Variables link points to the README on GitHub. Then check the public page, [hub.docker.com/r/wazam123/ios9-webkit-slideshow](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow).
+
+```bash
+# Run from the repo root. Append | /mnt/c/Windows/System32/clip.exe to copy it to the Windows clipboard
+/usr/bin/python3 -I - <<'EOF'
+import re
+s = open('README.md').read()
+def sec(a, b):
+    i = s.index(a); return s[i:s.index(b, i)].rstrip() + '\n'
+base = 'https://github.com/wazam/ios9-webkit-slideshow'
+ghcr, hub = 'ghcr.io/wazam/ios9-webkit-slideshow:latest', 'wazam123/ios9-webkit-slideshow:latest'
+intro = re.sub(r'^<img[^>]*> ', '', next(l for l in s.split('\n') if l.startswith('<img src="apple-touch-icon.png"')))
+compose = open('compose.yaml').read()
+assert compose.count(ghcr) == 1
+compose = compose.replace(ghcr, hub)
+setup = re.search(r'^\*\*Required setup:\*\* the (.*)$', s, re.M).group(1)
+steps = sec('1. **Create the pictures directory**', '### Build from Source')
+dl_end = '/main/compose.yaml\n   ```\n'
+assert steps.count(dl_end) == 1
+steps = steps[:steps.index(dl_end) + len(dl_end)] + steps[steps.index('3. **Start the stack**') - 1:]
+steps = steps.replace(dl_end, dl_end + '\n   The downloaded `compose.yaml` pulls from GHCR. To pull from Docker Hub instead, change its `image:` line to `' + hub + '`, as above.\n')
+quick = '\n'.join([
+    '## Quick Start', '',
+    'The image is published to [GitHub Container Registry](https://github.com/wazam/ios9-webkit-slideshow/pkgs/container/ios9-webkit-slideshow) (`ghcr.io/wazam/ios9-webkit-slideshow`) and Docker Hub (`wazam123/ios9-webkit-slideshow`). This is the `compose.yaml` to use, pulling from Docker Hub:', '',
+    '```yaml', compose.rstrip(), '```', '',
+    f'Every setting is optional: it reads from a `.env` file next to `compose.yaml` and falls back to the defaults shown. The README\'s [Environment Variables]({base}#environment-variables) table describes each one.', '',
+    'The ' + setup, '',
+    steps])
+feat = sec('## Features', '## Tech Stack')
+issues = sec('## Contributing', '## License').replace('## Contributing', '## Issues and Feature Requests')
+issues = issues.replace('](CHANGELOG.md)', f']({base}/blob/main/CHANGELOG.md)')
+print('\n'.join([f'GitHub: {base}', '', intro, '', quick, feat, issues]).rstrip())
+EOF
+```
+
+An `AssertionError` means the README's download step or `compose.yaml`'s `image:` line changed shape; update the command to match before pasting anything.
+
 - **One-line description:** one sentence of at most 100 characters (Docker Hub's limit) saying what the README's first sentence says. Its one copy in the repo is the Dockerfile's `org.opencontainers.image.description` label, which Docker Publish also puts on GHCR's package page. Change it there first, then copy it to GitHub's About description and Docker Hub's short description:
 
     ```bash
