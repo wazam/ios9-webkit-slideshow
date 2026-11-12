@@ -37,7 +37,7 @@
 <script src="photos.js"></script>
 <script type="text/javascript">
   var fadeMs = 1500; // keep in sync with the CSS opacity transition duration above
-  var delayMs = ${SLIDESHOW_DELAY_SECONDS} * 1000;
+  var delayMs = ${SLIDESHOW_INTERVAL_SECONDS} * 1000;
   var reloadMs = ${BROWSER_REFRESH_MINUTES} * 60 * 1000;
   var shuffleEnabled = "${SLIDESHOW_SHUFFLE}" === "true";
   var index = 0;

@@ -1,8 +1,8 @@
 services:
-  app:
+  slideshow:
     environment:
       - INBOX_SCAN_SECONDS=5
-      - SERVER_SCAN_SECONDS=5
+      - PICTURES_SCAN_SECONDS=5
       - BROWSER_REFRESH_MINUTES=1
-      - SLIDESHOW_DELAY_SECONDS=5
+      - SLIDESHOW_INTERVAL_SECONDS=5
       - SLIDESHOW_SHUFFLE=false

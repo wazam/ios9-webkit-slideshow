@@ -21,4 +21,4 @@ generate() {
 }
 
 generate
-( while true; do sleep "${SERVER_SCAN_SECONDS:-60}"; generate; done ) &
+( while true; do sleep "${PICTURES_SCAN_SECONDS:-60}"; generate; done ) &

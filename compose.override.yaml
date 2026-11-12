@@ -1,4 +1,4 @@
 services:
-  app:
-    build: .
+  slideshow:
     image: ios9-webkit-slideshow:local
+    build: .
