@@ -22,6 +22,7 @@ services:
       - BROWSER_REFRESH_MINUTES=${BROWSER_REFRESH_MINUTES:-15}
       - SLIDESHOW_INTERVAL_SECONDS=${SLIDESHOW_INTERVAL_SECONDS:-10}
       - SLIDESHOW_SHUFFLE=${SLIDESHOW_SHUFFLE:-true}
+      - TZ=${TZ:-UTC}
     volumes:
       - ./pictures:/usr/share/nginx/html/pictures
       # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro

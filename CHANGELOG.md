@@ -2,6 +2,12 @@
 
 Release notes for every version, newest first. Each version is tagged in git and has a matching [release on GitHub](https://github.com/wazam/ios9-webkit-slideshow/releases). Changes that haven't been released yet collect under **Unreleased**, and [RELEASING.md](RELEASING.md) covers how to ship them.
 
+## Unreleased
+
+### What's New
+
+- A `TZ` setting sets the time zone of the timestamps in `docker logs`, for example `TZ=America/New_York`. It defaults to UTC, as before. Copy the new `compose.yaml` to use it.
+
 ## [v0.2.0](https://github.com/wazam/ios9-webkit-slideshow/releases/tag/v0.2.0) (2026-11-11)
 
 ### Upgrading

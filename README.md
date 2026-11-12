@@ -114,6 +114,7 @@ The image is published to [GitHub Container Registry](https://github.com/wazam/i
          - BROWSER_REFRESH_MINUTES=${BROWSER_REFRESH_MINUTES:-15}
          - SLIDESHOW_INTERVAL_SECONDS=${SLIDESHOW_INTERVAL_SECONDS:-10}
          - SLIDESHOW_SHUFFLE=${SLIDESHOW_SHUFFLE:-true}
+         - TZ=${TZ:-UTC}
        volumes:
          - ./pictures:/usr/share/nginx/html/pictures
          # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro
@@ -169,6 +170,7 @@ All settings are optional. To change one, set it in a `.env` file next to `compo
 | `BROWSER_REFRESH_MINUTES` | How often the browser reloads the page to pick up new/removed photos | `15` |
 | `SLIDESHOW_INTERVAL_SECONDS` | How many seconds each photo stays on screen before crossfading to the next | `10` |
 | `SLIDESHOW_SHUFFLE` | `true` = random photo order, reshuffled each full cycle, guaranteed never to repeat the same photo twice in a row (unless only one photo exists); `false` = alphabetical path order (folders sort together, files uploaded later don't jump ahead of other folders) | `true` |
+| `TZ` | Time zone for the timestamps in the container's logs (`docker logs slideshow`). Accepts any [tz database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List), such as `America/New_York`. The slideshow itself is unaffected: the browser uses the device's own clock | `UTC` |
 
 ## Your Data
 
