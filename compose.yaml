@@ -1,30 +1,19 @@
-# https://github.com/wazam/ios9-webkit-slideshow
 services:
   slideshow:
     image: ghcr.io/wazam/ios9-webkit-slideshow:latest
     container_name: slideshow
     restart: unless-stopped
-    init: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges=true
-    read_only: true
-    # must own ./pictures; check with: ls -nd ./pictures
     user: "1000:1000"
-    mem_limit: 512m  # peaked at 37 MiB converting 7 iPhone HEIC photos
-    pids_limit: 128
-    tmpfs:
-      - /tmp:size=256m
     environment:
-      - INBOX_SCAN_SECONDS=${INBOX_SCAN_SECONDS:-30}
-      - PICTURES_SCAN_SECONDS=${PICTURES_SCAN_SECONDS:-60}
-      - BROWSER_REFRESH_MINUTES=${BROWSER_REFRESH_MINUTES:-15}
-      - SLIDESHOW_INTERVAL_SECONDS=${SLIDESHOW_INTERVAL_SECONDS:-10}
-      - SLIDESHOW_SHUFFLE=${SLIDESHOW_SHUFFLE:-true}
-      - TZ=${TZ:-UTC}
+      - INBOX_SCAN_SECONDS=${INBOX_SCAN_SECONDS:-30}  # optional
+      - PICTURES_SCAN_SECONDS=${PICTURES_SCAN_SECONDS:-60}  # optional
+      - BROWSER_REFRESH_MINUTES=${BROWSER_REFRESH_MINUTES:-15}  # optional
+      - SLIDESHOW_INTERVAL_SECONDS=${SLIDESHOW_INTERVAL_SECONDS:-10}  # optional
+      - SLIDESHOW_SHUFFLE=${SLIDESHOW_SHUFFLE:-true}  # optional
+      - TZ=${TZ:-UTC}  # optional
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1,::1}  # optional
     volumes:
       - ./pictures:/usr/share/nginx/html/pictures
-      # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro
+      # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro  # optional
     ports:
       - "8080:8080"

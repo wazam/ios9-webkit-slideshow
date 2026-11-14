@@ -7,6 +7,9 @@ Release notes for every version, newest first. Each version is tagged in git and
 ### What's New
 
 - A `TZ` setting sets the time zone of the timestamps in `docker logs`, for example `TZ=America/New_York`. It defaults to UTC, as before. Copy the new `compose.yaml` to use it.
+- `compose.yaml` is simpler: it no longer includes the hardening block, and each setting is marked `# optional`. An existing `compose.yaml` keeps working.
+- Reverse proxy support: set `FORWARDED_ALLOW_IPS` to your proxy's IP, and the access log shows each visitor's real IP instead of the proxy's. Only requests from the addresses you list can set `X-Forwarded-For`, so nobody else can fake their IP. It defaults to `127.0.0.1,::1`.
+- `.env.example` is gone. The README's Environment Variables table describes every setting and its default, and `compose.yaml` marks each one `# optional` or `# required`. Put the ones you set in `.env` next to `compose.yaml`, one `NAME=value` per line.
 
 ## [v0.2.0](https://github.com/wazam/ios9-webkit-slideshow/releases/tag/v0.2.0) (2026-11-11)
 

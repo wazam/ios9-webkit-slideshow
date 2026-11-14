@@ -7,7 +7,7 @@
 [![Docker Hub Pulls](https://img.shields.io/docker/pulls/wazam123/ios9-webkit-slideshow?logo=docker&label=Docker%20Hub%20Pulls)](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow)
 [![GHCR Pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fwazam%2Fios9-webkit-slideshow%2Fios9-webkit-slideshow&query=downloadCountRaw&label=GHCR%20Pulls&logo=github)](https://github.com/wazam/ios9-webkit-slideshow/pkgs/container/ios9-webkit-slideshow)
 
-<img src="apple-touch-icon.png" alt="Slideshow" width="96"> **iOS 9 WebKit Slideshow** is a minimal, dependency-free photo slideshow built to run on genuinely old hardware: originally an iPad 3 (iOS 9.3.6, stuck on ancient Safari/WebKit) repurposed as a photo display. It's just plain HTML/CSS/JS (ES5) served by nginx, no frameworks, no `fetch()`, no ES6+ syntax, since modern JS tooling simply won't run on browsers this old: existing options like [ImmichFrame](https://github.com/immichFrame/immichFrame) and [PhotoShow](https://github.com/thibaud-rohmer/PhotoShow) both failed on iOS 9 Safari (a frontend that couldn't run at all, and a slideshow button that silently did nothing). Ancient problems require modern solutions.
+<img src="src/apple-touch-icon.png" alt="Slideshow" width="96"> **iOS 9 WebKit Slideshow** is a minimal, dependency-free photo slideshow built to run on genuinely old hardware: originally an iPad 3 (iOS 9.3.6, stuck on ancient Safari/WebKit) repurposed as a photo display. It's just plain HTML/CSS/JS (ES5) served by nginx, no frameworks, no `fetch()`, no ES6+ syntax, since modern JS tooling simply won't run on browsers this old: existing options like [ImmichFrame](https://github.com/immichFrame/immichFrame) and [PhotoShow](https://github.com/thibaud-rohmer/PhotoShow) both failed on iOS 9 Safari (a frontend that couldn't run at all, and a slideshow button that silently did nothing). Ancient problems require modern solutions.
 
 ## Table of Contents
 
@@ -34,8 +34,8 @@
 - **Organize however you like**: photos in subfolders all play together in one shared rotation, no matter how you nest them, and any folder named `ignore` is hidden from the rotation without deleting anything
 - **Shuffle or in order**: show photos in random order or alphabetically, your choice
 - **No manual photo conversion**: drop `.heic` photos straight from your iPhone into the shared folder (however you already access it, like a network share or a file browser app) and they're automatically converted and added to the slideshow, no separate conversion step needed
-- **Plugs into monitoring tools**: a built-in health check lets tools like Portainer tell if it's actually still working
-- **Locked down**: runs as an ordinary user (uid 1000) on a read-only filesystem, with nothing running as root at any point
+- **Plugs into monitoring tools**: a built-in health check lets Docker and monitoring tools tell if it's actually still working
+- **Locked down**: runs as an ordinary user (uid 1000), with nothing running as root at any point
 
 ## Tech Stack
 
@@ -47,10 +47,11 @@
 
 ## How It Works
 
-- `Dockerfile` builds a custom image on top of `nginxinc/nginx-unprivileged:1.31-alpine`, with the slideshow page and a photo-scanning script baked in. The container runs as uid 1000 from the start, on a read-only filesystem; the page and photo list it generates are kept in `/tmp`
-- On container start, and then every `PICTURES_SCAN_SECONDS`, `generate-photos.sh` scans the mounted `pictures/` folder and writes out `photos.js`, a plain JS array of image paths
-- `index.html.template` is processed by nginx's built-in `envsubst` templating on startup, substituting environment variables into the page before serving it
-- `process-inbox.sh` runs on container start, before the first photo scan, and then every `INBOX_SCAN_SECONDS` on its own schedule, converting and moving anything dropped into `pictures/_inbox/` (deduplicated by content hash, filename collisions auto-renamed). A photo it moves joins the slideshow after the next photo scan and the browser's next reload
+- `Dockerfile` builds a custom image on top of `nginxinc/nginx-unprivileged:1.31-alpine`, with the slideshow page and a photo-scanning script baked in. The container runs as uid 1000 from the start, and keeps the page and photo list it generates in `/tmp`, so it also runs on a read-only filesystem
+- On container start, and then every `PICTURES_SCAN_SECONDS`, `src/generate-photos.sh` scans the mounted `pictures/` folder and writes out `photos.js`, a plain JS array of image paths
+- `src/index.html.template` is processed by nginx's built-in `envsubst` templating on startup, substituting environment variables into the page before serving it
+- `src/forwarded-allow-ips.sh` runs on startup and turns `FORWARDED_ALLOW_IPS` into nginx's `set_real_ip_from` lines, so the access log takes a client's IP from `X-Forwarded-For` only when the request comes from a trusted proxy
+- `src/process-inbox.sh` runs on container start, before the first photo scan, and then every `INBOX_SCAN_SECONDS` on its own schedule, converting and moving anything dropped into `pictures/_inbox/` (deduplicated by content hash, filename collisions auto-renamed). A photo it moves joins the slideshow after the next photo scan and the browser's next reload
 
 ## Compatibility Notes
 
@@ -69,7 +70,7 @@
 > [!TIP]
 > Run via Docker Compose is recommended for most users. No clone required.
 
-**Required setup:** the container runs as uid 1000 and writes into `pictures/` (to process `_inbox/` drops), so that folder must belong to uid 1000. Create it yourself before the first start, since a folder Docker creates belongs to root. On most single-user Linux and WSL setups, your own account is already uid 1000 (check with `id -u`). For an existing folder owned by someone else, either give it to uid 1000 (`sudo chown -R 1000:1000 pictures`) or, if its owner isn't root, set `user:` in `compose.yaml` to that owner (find it with `ls -nd pictures`). If they don't match, the slideshow still runs but the inbox stays off, and `docker logs slideshow` shows a `process-inbox:` line with the command that fixes it. Once they match, the container and that account can both use anything either one creates, including folders added later by a file manager or a family member organizing `_inbox/` drops.
+**Required setup:** the container runs as uid 1000 and writes into `pictures/` (to process `_inbox/` drops), so that folder must belong to uid 1000. Create it yourself before the first start, since a folder Docker creates belongs to root. On most single-user Linux machines, your own account is already uid 1000 (check with `id -u`). For an existing folder owned by someone else, either give it to uid 1000 (`sudo chown -R 1000:1000 pictures`) or, if its owner isn't root, set `user:` in `compose.yaml` to that owner (find it with `ls -nd pictures`). If they don't match, the slideshow still runs but the inbox stays off, and `docker logs slideshow` shows a `process-inbox:` line with the command that fixes it. Once they match, the container and that account can both use anything either one creates, including folders added later by a file manager or a family member organizing `_inbox/` drops.
 
 ### Run via Docker Compose
 
@@ -87,37 +88,26 @@ The image is published to [GitHub Container Registry](https://github.com/wazam/i
    curl -O https://raw.githubusercontent.com/wazam/ios9-webkit-slideshow/main/compose.yaml
    ```
 
-   The compose file looks like this. Change `user:` if the required setup above calls for it. Every setting is optional: it reads from a `.env` file next to `compose.yaml` and falls back to the defaults shown (see [Environment Variables](#environment-variables)):
+   The compose file looks like this. Change `user:` if the required setup above calls for it. Every setting is optional: set the ones you want to change in a `.env` file next to `compose.yaml`, and the rest keep their defaults (see [Environment Variables](#environment-variables)):
 
    ```yaml
-   # https://github.com/wazam/ios9-webkit-slideshow
    services:
      slideshow:
        image: ghcr.io/wazam/ios9-webkit-slideshow:latest
        container_name: slideshow
        restart: unless-stopped
-       init: true
-       cap_drop:
-         - ALL
-       security_opt:
-         - no-new-privileges=true
-       read_only: true
-       # must own ./pictures; check with: ls -nd ./pictures
        user: "1000:1000"
-       mem_limit: 512m  # peaked at 37 MiB converting 7 iPhone HEIC photos
-       pids_limit: 128
-       tmpfs:
-         - /tmp:size=256m
        environment:
-         - INBOX_SCAN_SECONDS=${INBOX_SCAN_SECONDS:-30}
-         - PICTURES_SCAN_SECONDS=${PICTURES_SCAN_SECONDS:-60}
-         - BROWSER_REFRESH_MINUTES=${BROWSER_REFRESH_MINUTES:-15}
-         - SLIDESHOW_INTERVAL_SECONDS=${SLIDESHOW_INTERVAL_SECONDS:-10}
-         - SLIDESHOW_SHUFFLE=${SLIDESHOW_SHUFFLE:-true}
-         - TZ=${TZ:-UTC}
+         - INBOX_SCAN_SECONDS=${INBOX_SCAN_SECONDS:-30}  # optional
+         - PICTURES_SCAN_SECONDS=${PICTURES_SCAN_SECONDS:-60}  # optional
+         - BROWSER_REFRESH_MINUTES=${BROWSER_REFRESH_MINUTES:-15}  # optional
+         - SLIDESHOW_INTERVAL_SECONDS=${SLIDESHOW_INTERVAL_SECONDS:-10}  # optional
+         - SLIDESHOW_SHUFFLE=${SLIDESHOW_SHUFFLE:-true}  # optional
+         - TZ=${TZ:-UTC}  # optional
+         - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1,::1}  # optional
        volumes:
          - ./pictures:/usr/share/nginx/html/pictures
-         # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro
+         # - /path/to/your/existing/photos:/usr/share/nginx/html/pictures/external:ro  # optional
        ports:
          - "8080:8080"
    ```
@@ -130,7 +120,7 @@ The image is published to [GitHub Container Registry](https://github.com/wazam/i
 
 4. **Open the slideshow**
 
-   Visit `http://<host>:8080` in your browser.
+   Visit `http://<host-ip>:8080` in your browser, where `<host-ip>` is the address of the machine running Docker.
 
 ### Build from Source
 
@@ -157,11 +147,11 @@ The image is published to [GitHub Container Registry](https://github.com/wazam/i
 
 3. **Open the slideshow**
 
-   Visit `http://<host>:8080` in your browser.
+   Visit `http://<host-ip>:8080` in your browser, where `<host-ip>` is the address of the machine running Docker.
 
 ## Environment Variables
 
-All settings are optional. To change one, set it in a `.env` file next to `compose.yaml`. [`.env.example`](.env.example) lists them all with their defaults, so you can start from a copy of it.
+All settings are optional. To change one, set it in a `.env` file next to `compose.yaml`, one `NAME=value` per line, such as `TZ=America/New_York`.
 
 | Variable | Description | Default |
 |---|---|---|
@@ -171,6 +161,10 @@ All settings are optional. To change one, set it in a `.env` file next to `compo
 | `SLIDESHOW_INTERVAL_SECONDS` | How many seconds each photo stays on screen before crossfading to the next | `10` |
 | `SLIDESHOW_SHUFFLE` | `true` = random photo order, reshuffled each full cycle, guaranteed never to repeat the same photo twice in a row (unless only one photo exists); `false` = alphabetical path order (folders sort together, files uploaded later don't jump ahead of other folders) | `true` |
 | `TZ` | Time zone for the timestamps in the container's logs (`docker logs slideshow`). Accepts any [tz database name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List), such as `America/New_York`. The slideshow itself is unaffected: the browser uses the device's own clock | `UTC` |
+| `FORWARDED_ALLOW_IPS` | Reverse proxy IPs to trust for `X-Forwarded-For` headers, comma-separated (CIDR ranges allowed). Behind a reverse proxy, set this to the proxy's address as the container sees it, so the access log shows real client IPs: the proxy container's address on a shared Docker network, or the network's gateway (from `docker network inspect`) when the proxy runs on the host. Use `*` only if nothing but the proxy can reach port 8080. | `127.0.0.1,::1` |
+
+> [!TIP]
+> If a reverse proxy runs on the same machine, publish the port on loopback only (`"127.0.0.1:8080:8080"` under `ports:`), so other devices can't go around the proxy.
 
 ## Your Data
 
@@ -216,13 +210,13 @@ A file-manager container (e.g. [FileBrowser](https://github.com/gtsteffaniak/fil
 
 ## Screenshots
 
-![The iPad 3 on its desk stand, crossfading between photos](slideshow-demo.gif)
+![The iPad 3 on its desk stand, crossfading between photos](docs/slideshow-demo.gif)
 
 The physical setup, crossfading between two photos on the iPad 3.
 
 ## Contributing
 
-Report bugs or feature requests by opening an issue on the [GitHub repository](https://github.com/wazam/ios9-webkit-slideshow/issues). See [CHANGELOG.md](CHANGELOG.md) for what changed in each release and [ROADMAP.md](ROADMAP.md) for planned and proposed features.
+Report bugs or feature requests by opening an issue on the [GitHub repository](https://github.com/wazam/ios9-webkit-slideshow/issues). See [CHANGELOG.md](CHANGELOG.md) for what changed in each release, [ROADMAP.md](ROADMAP.md) for planned and proposed features, and [RELEASING.md](RELEASING.md) for how a release is made.
 
 ## License
 

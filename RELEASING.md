@@ -1,6 +1,10 @@
 # Releasing
 
-How a new version of iOS 9 WebKit Slideshow goes from `main` to published Docker images and a GitHub Release. Replace `X.Y.Z` with the new version throughout.
+How a new version of iOS 9 WebKit Slideshow goes from `main` to published Docker images and a GitHub Release. Versions follow semver; replace `X.Y.Z` with the new version throughout.
+
+**What ships isn't exactly what was tested.** Docker Publish builds the images again after the tag is pushed. The base image can move to a newer patch within its nginx line, and every Alpine package (`apk upgrade`, then `libheif-tools`) to newer versions, between the local build, Compose Test and the publish. The GHCR and Docker Hub images are also separate builds. The published-image test in step 6 runs both registries' images on amd64 and arm64 right after publishing, which is the closest check.
+
+CI-only changes (a workflow fix) go to `main` without a version bump, tag or release.
 
 ## 1. Choose the version
 
@@ -60,8 +64,6 @@ Inside the repo, `docker compose` also loads `compose.override.yaml`, so this ru
 - A HEIC photo dropped into `pictures/_inbox/` shows up converted in `pictures/` within `INBOX_SCAN_SECONDS`.
 - The iPad shows the slideshow from this machine's LAN address. A modern desktop browser isn't a substitute: iOS 9 Safari is the target.
 
-**What ships isn't exactly what was tested.** Docker Publish builds the images again after the tag is pushed. The base image can move to a newer patch within its nginx line, and every Alpine package (`apk upgrade`, then `libheif-tools`) to newer versions, between the local build, Compose Test and the publish. The GHCR and Docker Hub images are also separate builds. The published-image test in step 6 runs both registries' images on amd64 and arm64 right after publishing, which is the closest check.
-
 ## 4. Commit and tag
 
 Commit the release, including `CHANGELOG.md` so the tagged commit carries its own notes. A release commit that bundles unrelated changes gets one prefixed line per change:
@@ -91,6 +93,15 @@ If Compose Test fails, fix the cause, commit it, move the tag to the new commit 
 
 Push one tag at a time. Tags pushed together publish in parallel, and `latest` can end up on whichever finishes last.
 
+### Wrong tag after pushing
+
+The images are already published as `X.Y.Z`, `X.Y` and `latest`. Fix the cause, delete the release if one exists (`gh release delete vX.Y.Z --yes`), then move the tag and force-push it; the new publish overwrites those image tags:
+
+```bash
+git tag -fa vX.Y.Z -m "vX.Y.Z"
+git push --force origin vX.Y.Z
+```
+
 ## 6. Watch the images publish, then the published-image test
 
 Docker Publish builds the image for `linux/amd64` and `linux/arm64`, and pushes it to both registries with a GitHub build provenance attestation for each:
@@ -105,16 +116,16 @@ sleep 15  # give GitHub a moment to queue the run
 gh run watch --exit-status "$(gh run list --workflow docker.yml --commit "$(git rev-parse HEAD)" --limit 1 --json databaseId -q '.[0].databaseId')"
 ```
 
-If a job fails, fix the cause on `main`, then move the tag to the fixed commit before rerunning (`git tag -fa vX.Y.Z -m "vX.Y.Z"` and `git push -f origin vX.Y.Z`), so the images and the tag match.
+If a job fails, fix the cause on `main` and move the tag to the fixed commit, as in [Wrong tag after pushing](#wrong-tag-after-pushing), so the images and the tag match.
 
-When Docker Publish succeeds, it starts one Compose Test run with four jobs: it pulls `X.Y.Z` from GHCR and from Docker Hub, on amd64 and on arm64, and runs the same checks as on every push. All four must pass:
+When Docker Publish succeeds, it starts one Compose Test run with eight jobs: it pulls `X.Y.Z` from GHCR and from Docker Hub, on amd64 and on arm64, and runs the same checks as on every push, once with the plain `compose.yaml` and once hardened. All eight must pass:
 
 ```bash
 sleep 15  # give GitHub a moment to queue the run
 gh run watch --exit-status "$(gh run list --workflow compose-test.yml --event workflow_run --commit "$(git rev-parse HEAD)" --limit 1 --json databaseId -q '.[0].databaseId')"
 ```
 
-The commit filter works because `main` and the tag point at the same commit; push nothing else to `main` until this run finishes. If no run appears, check that `gh workflow list` shows Compose Test as active: GitHub disables scheduled workflows after 60 days without repo activity, and a disabled workflow skips this run too (`gh workflow enable compose-test.yml`).
+The commit filter works because `main` and the tag point at the same commit; push nothing else to `main` until this run finishes. If no run appears, check that `gh workflow list` shows Compose Test as active, since a disabled workflow skips this run too (`gh workflow enable compose-test.yml`).
 
 ### If the published image is bad
 
@@ -199,12 +210,12 @@ GHCR's package page shows the README by itself. Docker Hub's page and GitHub's A
 - **Docker Hub overview:** on hub.docker.com, open the repository's General tab and replace the overview with the output of the command below, which builds it from `README.md` and `compose.yaml` so the page can't drift from them. In order, it has:
     - a first line `GitHub: https://github.com/wazam/ios9-webkit-slideshow`, then the README's intro paragraph without its icon
     - `## Quick Start`: the two registries, `compose.yaml` itself with its `image:` line changed to `wazam123/ios9-webkit-slideshow:latest` (the page is Docker Hub's), the settings and folder-owner paragraphs, and the numbered steps without the tip box or Build from Source; after the download step, a note that the downloaded file pulls from GHCR and how to switch it
-    - `## Features`, and `## Issues and Feature Requests` with the sentence from the README's Contributing section
+    - `## Features`, and `## Issues and Feature Requests` with the README's Contributing text: the issues sentence and the CHANGELOG, ROADMAP and RELEASING links
 
     Every link is absolute; the Environment Variables link points to the README on GitHub. Then check the public page, [hub.docker.com/r/wazam123/ios9-webkit-slideshow](https://hub.docker.com/r/wazam123/ios9-webkit-slideshow).
 
 ```bash
-# Run from the repo root. Append | /mnt/c/Windows/System32/clip.exe to copy it to the Windows clipboard
+# Run from the repo root.
 /usr/bin/python3 -I - <<'EOF'
 import re
 s = open('README.md').read()
@@ -212,7 +223,7 @@ def sec(a, b):
     i = s.index(a); return s[i:s.index(b, i)].rstrip() + '\n'
 base = 'https://github.com/wazam/ios9-webkit-slideshow'
 ghcr, hub = 'ghcr.io/wazam/ios9-webkit-slideshow:latest', 'wazam123/ios9-webkit-slideshow:latest'
-intro = re.sub(r'^<img[^>]*> ', '', next(l for l in s.split('\n') if l.startswith('<img src="apple-touch-icon.png"')))
+intro = re.sub(r'^<img[^>]*> ', '', next(l for l in s.split('\n') if l.startswith('<img src="src/apple-touch-icon.png"')))
 compose = open('compose.yaml').read()
 assert compose.count(ghcr) == 1
 compose = compose.replace(ghcr, hub)
@@ -226,13 +237,12 @@ quick = '\n'.join([
     '## Quick Start', '',
     'The image is published to [GitHub Container Registry](https://github.com/wazam/ios9-webkit-slideshow/pkgs/container/ios9-webkit-slideshow) (`ghcr.io/wazam/ios9-webkit-slideshow`) and Docker Hub (`wazam123/ios9-webkit-slideshow`). This is the `compose.yaml` to use, pulling from Docker Hub:', '',
     '```yaml', compose.rstrip(), '```', '',
-    f'Every setting is optional: it reads from a `.env` file next to `compose.yaml` and falls back to the defaults shown. The README\'s [Environment Variables]({base}#environment-variables) table describes each one.', '',
+    f'Every setting is optional: set the ones you want to change in a `.env` file next to `compose.yaml`, and the rest keep their defaults. The README\'s [Environment Variables]({base}#environment-variables) table lists each one with its default.', '',
     'The ' + setup, '',
     steps])
 feat = sec('## Features', '## Tech Stack')
 issues = sec('## Contributing', '## License').replace('## Contributing', '## Issues and Feature Requests')
-issues = issues.replace('](CHANGELOG.md)', f']({base}/blob/main/CHANGELOG.md)')
-issues = issues.replace('](ROADMAP.md)', f']({base}/blob/main/ROADMAP.md)')
+issues = re.sub(r'\]\((?!https?://)([^)]+)\)', lambda m: f']({base}/blob/main/{m.group(1)})', issues)
 print('\n'.join([f'GitHub: {base}', '', intro, '', quick, feat, issues]).rstrip())
 EOF
 ```
