@@ -1,5 +1,2 @@
 *
-!index.html.template
-!apple-touch-icon.png
-!process-inbox.sh
-!generate-photos.sh
+!src/
